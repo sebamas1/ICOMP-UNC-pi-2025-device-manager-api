@@ -7,7 +7,7 @@ on:
 
 env:
   AWS_REGION: us-east-2               
-  ECR_REPOSITORY: tesis/tp1-app
+  ECR_REPOSITORY: tesis/tp1-backend
 
 permissions:
   contents: read # por detras, el runner utiliza un token para autenticarse contra Actions, esta linea especifica los permisos de dicho token, en este caso, leer
@@ -38,7 +38,7 @@ jobs:
       - name: Build, tag, and push docker image to Amazon ECR Public
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          REPOSITORY: tesis/tp1-app
+          REPOSITORY: tesis/tp1-backend
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -f docker-config/Dockerfile -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
