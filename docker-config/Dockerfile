@@ -3,9 +3,9 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
 COPY *.sln ./
-COPY Web/Web.csproj ./src/Web/Web.csproj
-COPY Business/Business.csproj ./src/Business/Business.csproj
-COPY Data/Data.csproj ./src/Data/Data.csproj
+COPY src/Web/Web.csproj ./src/Web/Web.csproj
+COPY src/Business/Business.csproj ./src/Business/Business.csproj
+COPY src/Data/Data.csproj ./src/Data/Data.csproj
 
 RUN dotnet restore ./src/Web/Web.csproj
 
