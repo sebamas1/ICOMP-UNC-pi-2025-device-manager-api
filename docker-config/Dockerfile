@@ -1,6 +1,6 @@
 # Build
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
-WORKDIR /src
+WORKDIR .
 
 COPY *.sln ./
 COPY src/Web/Web.csproj ./src/Web/Web.csproj
