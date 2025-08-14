@@ -1,0 +1,43 @@
+name: CI Pipeline
+
+on:
+  release:
+    types:
+      - created
+
+env:
+  AWS_REGION: us-east-2               
+  ECR_REPOSITORY: tesis/tp1_app
+
+permissions:
+  contents: read # por detras, el runner utiliza un token para autenticarse contra Actions, esta linea especifica los permisos de dicho token, en este caso, leer
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest  # define la imagen del runner
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4 # esta action descarga el repositorio en el runner para ser leido. V4 esta especificando la version del 
+                                  # action usado, para que siga funcionando en caso de que se introduzcan breaking changes
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build, tag, and push docker image to Amazon ECR Public
+              env:
+                REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
+                REGISTRY_ALIAS: my-ecr-public-registry-alias
+                REPOSITORY: tesis/tp1_app
+                IMAGE_TAG: ${{ github.sha }}
+              run: |
+                docker build -f docker-config/Dockerfile -t $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG .
+                docker push $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG
+
