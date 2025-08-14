@@ -7,7 +7,7 @@ on:
 
 env:
   AWS_REGION: us-east-2               
-  ECR_REPOSITORY: tesis/tp1_app
+  ECR_REPOSITORY: tesis/tp1-app
 
 permissions:
   contents: read # por detras, el runner utiliza un token para autenticarse contra Actions, esta linea especifica los permisos de dicho token, en este caso, leer
