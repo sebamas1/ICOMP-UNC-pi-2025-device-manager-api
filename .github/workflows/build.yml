@@ -6,8 +6,8 @@ on:
       - created
 
 env:
-  AWS_REGION: us-east-2               
-  ECR_REPOSITORY: tesis/tp1-backend
+  AWS_REGION: us-east-1              
+  ECR_REPOSITORY: b4c0c6w7/tesis/tp1-backend
 
 permissions:
   contents: read # por detras, el runner utiliza un token para autenticarse contra Actions, esta linea especifica los permisos de dicho token, en este caso, leer
@@ -34,11 +34,13 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
 
       - name: Build, tag, and push docker image to Amazon ECR Public
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          REPOSITORY: tesis/tp1-backend
+          REPOSITORY: ${{ env.ECR_REPOSITORY }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -f docker-config/Dockerfile -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
