@@ -19,6 +19,17 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// allow cors
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 // // Add services to the container.
 builder.Services.AddControllers();
 
@@ -45,6 +56,7 @@ if( !app.Environment.IsEnvironment("Docker")) {
     app.UseHttpsRedirection();
 }
 
+app.UseCors();
 app.MapControllers();
 
 app.Run();

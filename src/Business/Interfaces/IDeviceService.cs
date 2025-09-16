@@ -14,4 +14,5 @@ public interface IDeviceService
     Sensor AddSensor(int deviceId, Sensor sensor);
     void UpdateSensor(int deviceId, int sensorId, Sensor sensor);
     void DeleteSensor(int deviceId, int sensorId);
+    IEnumerable<SensorReading> GetSensorHistory(int deviceId, int sensorId, int limit = 50);
 }

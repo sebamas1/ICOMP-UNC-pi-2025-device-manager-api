@@ -61,4 +61,19 @@ public class DeviceService(IDeviceRepository repo) : IDeviceService
         if (sensor is null) throw new KeyNotFoundException($"Sensor with ID {sensorId} not found for device {deviceId}.");
         _repo.DeleteSensor(sensor);
     }
+
+    public IEnumerable<SensorReading> GetSensorHistory(int deviceId, int sensorId, int limit = 50)
+    {
+        // Simulate historical data for demonstration purposes
+        var random = new Random();
+        var readings = new List<SensorReading>();
+        var current = DateTime.UtcNow.AddDays(-1); // Start from 1 day ago
+        
+        var value = random.NextDouble() * 100; // Random value between 0 and 100
+        readings.Add(new SensorReading(current, value, "simulated"));
+        current = current.AddHours(1); // Increment by 1 hour
+        
+
+        return readings;
+    }
 }

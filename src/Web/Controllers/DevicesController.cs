@@ -114,10 +114,24 @@ public class DevicesController(IDeviceService service) : ControllerBase
     {
         _service.Delete(id);
     }
-    
+
     [HttpDelete("{deviceId:int}/sensors/{sensorId:int}")]
     public void DeleteSensor(int deviceId, int sensorId)
     {
         _service.DeleteSensor(deviceId, sensorId);
     }
+
+    [HttpGet("health")]
+    public ActionResult GetHealth() => Ok(new { status = "healthy" });
+    
+    [HttpGet("{deviceId:int}/sensors/{sensorId:int}/history")]
+    public ActionResult<IEnumerable<SensorReading>> GetSensorHistory(int deviceId, int sensorId, [FromQuery] int limit = 50)
+    {
+        var sensor = _service.GetSensor(deviceId, sensorId);
+        if (sensor is null) return NotFound();
+
+        var history = _service.GetSensorHistory(deviceId, sensorId, limit);
+        return Ok(history);
+    }
+
 }

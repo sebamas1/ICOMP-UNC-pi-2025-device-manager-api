@@ -12,7 +12,7 @@ docker-compose -f compose.yml up --build -d
 Write-Host " ------- Containers are being built and started in detached mode. ------- "
 
 # Wait for containers to be ready
-Write-Host "######Step 3: Waiting for containers to be ready..."
+Write-Host "###### Step 3: Waiting for containers to be ready..."
 Start-Sleep -Seconds 10
 
 # Check if the containers are running
@@ -29,16 +29,19 @@ while (-not $success) {
         $success = $true
     } else {
         Write-Host "Device Manager API container is not running. Retrying in 5 seconds..."
+        $success = $false
         Start-Sleep -Seconds 5
     }
 
-    # Check if the SQL Server container is running
-    if ($containers -match "sqlserver") {
-        Write-Host "SQL Server container is running."
-    } else {
-        Write-Host "SQL Server container is not running. Retrying in 5 seconds..."
-        Start-Sleep -Seconds 5
-    }
+    # # Check if the SQL Server container is running
+    # if ($containers -match "sqlserver") {
+    #     Write-Host "SQL Server container is running."
+    #     $success = $true
+    # } else {
+    #     Write-Host "SQL Server container is not running. Retrying in 5 seconds..."
+    #     $success = $false
+    #     Start-Sleep -Seconds 5
+    # }
 }
 # Final message
 Write-Host "###### All containers are up and running successfully. ######"

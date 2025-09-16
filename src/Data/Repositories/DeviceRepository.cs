@@ -14,10 +14,21 @@ public class DeviceRepository : IDeviceRepository
 
     private static readonly List<Sensor> _sensors =
     [
+        // Device 1 - Raspberry Pi
         new Sensor(1, "T1", "Temperature", 22.5, 1),
         new Sensor(2, "H1", "Humidity", 45.0, 1),
-        new Sensor(3, "P1", "Pressure", 1013.25, 2),
-        new Sensor(4, "P2", "Light", 300.0, 3),
+        new Sensor(5, "P1", "Pressure", 1012.8, 1),
+        new Sensor(6, "L1", "Light", 280.0, 1),
+
+        // Device 2 - ESP32
+        new Sensor(3, "P2", "Pressure", 1013.25, 2),
+        new Sensor(7, "T2", "Temperature", 24.0, 2),
+        new Sensor(8, "H2", "Humidity", 50.5, 2),
+
+        // Device 3 - Arduino Mega
+        new Sensor(4, "P3", "Light", 300.0, 3),
+        new Sensor(9, "S1", "Sound", 65.2, 3),
+        new Sensor(10, "CO2", "CO₂", 415.0, 3),
     ];
 
     public IEnumerable<Device> GetAll() => _devices;
