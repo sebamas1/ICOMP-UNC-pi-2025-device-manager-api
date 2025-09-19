@@ -4,12 +4,18 @@ on:
   push:
     branches:
       - develop
-      - main   # también escuchamos main, pero diferenciamos en jobs/steps
+      - main
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: b4c0c6w7/tesis/tp1-backend
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,7 +28,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -30,14 +36,15 @@ jobs:
         with:
           registry-type: public
 
-      - name: Build & Push Docker image (develop)
+      - name: Build & Push Docker image
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          REPOSITORY: b4c0c6w7/tesis/tp1-backend
-          IMAGE_TAG: ${{ github.sha }}
+          REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.ref_name }}-${{ github.sha }}
         run: |
-          docker build -f docker-config/Dockerfile -t $REGISTRY/$REPOSITORY:develop-$IMAGE_TAG .
-          docker push $REGISTRY/$REPOSITORY:develop-$IMAGE_TAG
+          echo "Building image for branch: ${{ github.ref_name }}"
+          docker build -f docker-config/Dockerfile -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
 
   release:
     runs-on: ubuntu-latest
@@ -46,31 +53,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4.3.1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-        with:
-          registry-type: public
-
-      - name: Build & Push Docker image (main)
-        env:
-          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          REPOSITORY: b4c0c6w7/tesis/tp1-backend
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -f docker-config/Dockerfile -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
-          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
