@@ -1,9 +1,9 @@
 name: CI Pipeline
 
 on:
-  release:
-    types:
-      - created
+  push:
+    branches:
+      - main
 
 env:
   AWS_REGION: us-east-1              
