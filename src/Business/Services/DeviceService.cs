@@ -8,7 +8,6 @@ public class DeviceService(IDeviceRepository repo) : IDeviceService
 {
     private readonly IDeviceRepository _repo = repo;
     
-
     public IEnumerable<Device> GetAll() => _repo.GetAll();
     public Device? GetById(int id) => _repo.GetById(id);
     public IEnumerable<Sensor> GetSensors(int deviceId) => _repo.GetSensors(deviceId);
