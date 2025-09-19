@@ -7,7 +7,6 @@ namespace DeviceAPI.Manager.Business.Services;
 public class DeviceService(IDeviceRepository repo) : IDeviceService
 {
     private readonly IDeviceRepository _repo = repo;
-
     
     public IEnumerable<Device> GetAll() => _repo.GetAll();
     public Device? GetById(int id) => _repo.GetById(id);
