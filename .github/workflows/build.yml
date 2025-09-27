@@ -11,7 +11,7 @@ env:
   ECR_REPOSITORY: b4c0c6w7/tesis/tp1-backend
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
