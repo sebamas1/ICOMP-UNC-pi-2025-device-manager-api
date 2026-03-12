@@ -23,6 +23,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Web\Web.csproj" />
+    <ProjectReference Include="..\Business\Business.csproj" />
+    <ProjectReference Include="..\Data\Data.csproj" />
   </ItemGroup>
 
 </Project>
