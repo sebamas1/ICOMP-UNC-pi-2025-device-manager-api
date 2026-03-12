@@ -27,8 +27,7 @@ builder.Services.AddCors(options =>
         if (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Docker"))
         {
             // Dev / Docker: permitir CORS abierto para facilitar el laboratorio
-            policy.AllowAnyOrigin()
-                  .AllowAnyHeader()
+            policy.AllowAnyHeader()
                   .AllowAnyMethod();
             return;
         }
