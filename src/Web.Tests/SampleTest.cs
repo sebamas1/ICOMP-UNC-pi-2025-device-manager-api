@@ -1,3 +1,5 @@
+using Xunit;
+
 namespace DeviceAPI.Manager.Web.Tests;
 
 public class SampleTest
