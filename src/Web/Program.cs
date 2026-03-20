@@ -24,9 +24,22 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        if (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Docker"))
+        {
+            // Dev / Docker: permitir CORS abierto para facilitar el laboratorio
+            policy.AllowAnyHeader()
+                  .AllowAnyMethod();
+            return;
+        }
+
+        // Otros ambientes: restringir a orígenes configurados
+        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+        if (allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
     });
 });
 

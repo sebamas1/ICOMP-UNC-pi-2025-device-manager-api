@@ -1,6 +1,17 @@
+# Reglas de ramas:
+# - No push directo a develop ni a main. Merge solo por PR.
+# - PR / push a develop → CI (tests + SonarCloud) + publicar imagen en ECR repo DEVELOP.
+# - PR / push a main → CI (tests + SonarCloud) + publicar imagen en ECR repo MAIN.
+#
+# SonarCloud: configurar en el repo Secrets (SONAR_TOKEN) y Variables (SONAR_ORGANIZATION, SONAR_PROJECT_KEY).
+# Ver README o documentación del repo para pasos exactos.
 name: CI/CD Pipeline
 
 on:
+  pull_request:
+    branches:
+      - develop
+      - main
   push:
     branches:
       - develop
@@ -8,24 +19,81 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: b4c0c6w7/tesis/tp1-backend
+  ECR_REPOSITORY_DEVELOP: b4c0c6w7/tesis/tp1-backend
+  ECR_REPOSITORY_MAIN: b4c0c6w7/tesis/tp1-backend-prd
 
 permissions:
-  contents: write
-  
+  contents: read
 
 jobs:
-  build:
+  ci:
+    name: Tests & SonarCloud
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install SonarScanner for .NET
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: SonarCloud Begin
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+        run: |
+          dotnet sonarscanner begin \
+            /k:"$SONAR_PROJECT_KEY" \
+            /o:"$SONAR_ORGANIZATION" \
+            /d:sonar.token="$SONAR_TOKEN" \
+            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
+
+      - name: Restore
+        run: dotnet restore device-manager-api.sln
+
+      - name: Build
+        run: dotnet build device-manager-api.sln --no-restore -c Release
+
+      - name: Test
+        run: |
+          dotnet test device-manager-api.sln --no-build -c Release \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./TestResults \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+
+      - name: SonarCloud End
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
+
+  build-and-push:
+    name: Build Docker & Push ECR
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Set ECR repository
+        id: ecr
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "repository=${{ env.ECR_REPOSITORY_MAIN }}" >> $GITHUB_OUTPUT
+          else
+            echo "repository=${{ env.ECR_REPOSITORY_DEVELOP }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4.3.1
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -33,32 +101,41 @@ jobs:
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076
         with:
           registry-type: public
 
-      - name: Build & Push Docker image
+      - name: Build Docker image
         env:
-          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          REPOSITORY: ${{ env.ECR_REPOSITORY }}
           IMAGE_TAG: ${{ github.ref_name }}-${{ github.sha }}
         run: |
           echo "Building image for branch: ${{ github.ref_name }}"
-          docker build -f docker-config/Dockerfile -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
+          docker build -f docker-config/Dockerfile -t app:$IMAGE_TAG .
+
+      - name: Push image to ECR
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: ${{ steps.ecr.outputs.repository }}
+          IMAGE_TAG: ${{ github.ref_name }}-${{ github.sha }}
+        run: |
+          docker tag app:$IMAGE_TAG $REGISTRY/$REPOSITORY:$IMAGE_TAG
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
 
   release:
     runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/main'
+    needs: build-and-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b
         with:
           tag_name: v${{ github.run_number }}
           name: Release ${{ github.run_number }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    permissions:
+      contents: write
