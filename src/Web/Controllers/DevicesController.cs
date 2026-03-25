@@ -128,7 +128,7 @@ public class DevicesController(IDeviceService service) : ControllerBase
     public ActionResult<IEnumerable<SensorReading>> GetSensorHistory(int deviceId, int sensorId, [FromQuery] int limit = 50)
     {
         var sensor = _service.GetSensor(deviceId, sensorId);
-        if (sensor is null) return NotFound();
+        if (sensor is null) return NotFound(); // Verificar que el sensor exista antes de obtener su historial
 
         var history = _service.GetSensorHistory(deviceId, sensorId, limit);
         return Ok(history);
