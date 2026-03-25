@@ -9,7 +9,7 @@ COPY src/Data/Data.csproj ./src/Data/Data.csproj
 
 RUN dotnet restore ./src/Web/Web.csproj
 
-COPY . ./ 
+COPY src ./src
 
 # Publish
 RUN dotnet publish ./src/Web/Web.csproj -c Release -o /app/publish /p:UseAppHost=false
@@ -20,5 +20,8 @@ WORKDIR /app
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
 COPY --from=build /app/publish .
+
+RUN useradd --create-home --uid 10001 appuser
+USER appuser
 
 ENTRYPOINT ["dotnet", "Web.dll"]

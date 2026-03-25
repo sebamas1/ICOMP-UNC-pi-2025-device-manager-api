@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -7,11 +7,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "device-manager-api", "devic
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{D1976845-2B62-AA16-91E1-0A2C0A04E5AD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Web", "device-manager-api\src\Web\Web.csproj", "{3402F94B-93E1-4804-811D-92ECF4E1422D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Web", "src\Web\Web.csproj", "{3402F94B-93E1-4804-811D-92ECF4E1422D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Business", "device-manager-api\src\Business\Business.csproj", "{C570A50E-803E-4C82-8FEE-E9D8CF478ABB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Business", "src\Business\Business.csproj", "{C570A50E-803E-4C82-8FEE-E9D8CF478ABB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Data", "device-manager-api\src\Data\Data.csproj", "{D60E95DD-B13E-4E3F-953E-0AE9F883FB7E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Data", "src\Data\Data.csproj", "{D60E95DD-B13E-4E3F-953E-0AE9F883FB7E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Web.Tests", "src\Web.Tests\Web.Tests.csproj", "{E1E2E3E4-E5E6-7890-ABCD-111111111111}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -59,6 +61,18 @@ Global
 		{D60E95DD-B13E-4E3F-953E-0AE9F883FB7E}.Release|x64.Build.0 = Release|Any CPU
 		{D60E95DD-B13E-4E3F-953E-0AE9F883FB7E}.Release|x86.ActiveCfg = Release|Any CPU
 		{D60E95DD-B13E-4E3F-953E-0AE9F883FB7E}.Release|x86.Build.0 = Release|Any CPU
+		{E1E2E3E4-E5E6-7890-ABCD-111111111111}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E1E2E3E4-E5E6-7890-ABCD-111111111111}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E1E2E3E4-E5E6-7890-ABCD-111111111111}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E1E2E3E4-E5E6-7890-ABCD-111111111111}.Debug|x64.Build.0 = Debug|Any CPU
+		{E1E2E3E4-E5E6-7890-ABCD-111111111111}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E1E2E3E4-E5E6-7890-ABCD-111111111111}.Debug|x86.Build.0 = Debug|Any CPU
+		{E1E2E3E4-E5E6-7890-ABCD-111111111111}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E1E2E3E4-E5E6-7890-ABCD-111111111111}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E1E2E3E4-E5E6-7890-ABCD-111111111111}.Release|x64.ActiveCfg = Release|Any CPU
+		{E1E2E3E4-E5E6-7890-ABCD-111111111111}.Release|x64.Build.0 = Release|Any CPU
+		{E1E2E3E4-E5E6-7890-ABCD-111111111111}.Release|x86.ActiveCfg = Release|Any CPU
+		{E1E2E3E4-E5E6-7890-ABCD-111111111111}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -68,5 +82,6 @@ Global
 		{3402F94B-93E1-4804-811D-92ECF4E1422D} = {D1976845-2B62-AA16-91E1-0A2C0A04E5AD}
 		{C570A50E-803E-4C82-8FEE-E9D8CF478ABB} = {D1976845-2B62-AA16-91E1-0A2C0A04E5AD}
 		{D60E95DD-B13E-4E3F-953E-0AE9F883FB7E} = {D1976845-2B62-AA16-91E1-0A2C0A04E5AD}
+		{E1E2E3E4-E5E6-7890-ABCD-111111111111} = {D1976845-2B62-AA16-91E1-0A2C0A04E5AD}
 	EndGlobalSection
 EndGlobal
