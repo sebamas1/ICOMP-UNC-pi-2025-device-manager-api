@@ -65,7 +65,11 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
     });
 }
 
-if( !app.Environment.IsEnvironment("Docker")) {
+// Solo redirigir a HTTPS si Kestrel escucha HTTPS en este proceso. En Docker/K8s la imagen
+// define ASPNETCORE_URLS=http://+:8080; el TLS lo termina ingress/load balancer.
+var urls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS") ?? string.Empty;
+if (urls.Contains("https://", StringComparison.OrdinalIgnoreCase))
+{
     app.UseHttpsRedirection();
 }
 
