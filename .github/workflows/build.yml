@@ -19,8 +19,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY_DEVELOP: b4c0c6w7/tesis/tp1-backend-dev
-  ECR_REPOSITORY_MAIN: b4c0c6w7/tesis/tp1-backend-prd
+  ECR_REPOSITORY: b4c0c6w7/tesis/tp1-backend
 
 permissions:
   contents: read
@@ -80,13 +79,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
-      - name: Set ECR repository
-        id: ecr
+      - name: Set env tag
+        id: tag
         run: |
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            echo "repository=${{ env.ECR_REPOSITORY_MAIN }}" >> $GITHUB_OUTPUT
+            echo "env=prd" >> $GITHUB_OUTPUT
           else
-            echo "repository=${{ env.ECR_REPOSITORY_DEVELOP }}" >> $GITHUB_OUTPUT
+            echo "env=dev" >> $GITHUB_OUTPUT
           fi
 
       - name: Set up Docker Buildx
@@ -106,22 +105,19 @@ jobs:
           registry-type: public
 
       - name: Build Docker image
-        env:
-          IMAGE_TAG: ${{ github.ref_name }}-${{ github.sha }}
         run: |
           echo "Building image for branch: ${{ github.ref_name }}"
-          docker build -f docker-config/Dockerfile -t app:$IMAGE_TAG .
+          docker build -f docker-config/Dockerfile -t app:${{ github.sha }} .
 
       - name: Push image to ECR
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          REPOSITORY: ${{ steps.ecr.outputs.repository }}
-          IMAGE_TAG: ${{ github.ref_name }}-${{ github.sha }}
+          ENV_TAG: ${{ steps.tag.outputs.env }}
         run: |
-          docker tag app:$IMAGE_TAG $REGISTRY/$REPOSITORY:$IMAGE_TAG
-          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
-          docker tag app:$IMAGE_TAG $REGISTRY/$REPOSITORY:latest
-          docker push $REGISTRY/$REPOSITORY:latest
+          docker tag app:${{ github.sha }} $REGISTRY/${{ env.ECR_REPOSITORY }}:$ENV_TAG-${{ github.sha }}
+          docker push $REGISTRY/${{ env.ECR_REPOSITORY }}:$ENV_TAG-${{ github.sha }}
+          docker tag app:${{ github.sha }} $REGISTRY/${{ env.ECR_REPOSITORY }}:$ENV_TAG
+          docker push $REGISTRY/${{ env.ECR_REPOSITORY }}:$ENV_TAG
 
   release:
     runs-on: ubuntu-latest
