@@ -19,7 +19,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY_DEVELOP: b4c0c6w7/tesis/tp1-backend
+  ECR_REPOSITORY_DEVELOP: b4c0c6w7/tesis/tp1-backend-dev
   ECR_REPOSITORY_MAIN: b4c0c6w7/tesis/tp1-backend-prd
 
 permissions:
