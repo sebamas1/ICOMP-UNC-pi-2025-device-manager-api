@@ -1,0 +1,32 @@
+name: Hardware-in-the-Loop Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      simulated:
+        description: 'Usar valores simulados (sin sensor fisico)'
+        type: boolean
+        default: true
+
+jobs:
+  hil-tests:
+    name: HIL Tests
+    runs-on: [self-hosted, raspi]
+    env:
+      EKS_ENDPOINT: ${{ vars.EKS_ENDPOINT }}
+      HIL_SIMULATED: ${{ inputs.simulated }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Instalar dependencias
+        run: pip install --break-system-packages -r hil/requirements.txt
+
+      - name: Leer sensor DHT22
+        run: python3 hil/read_sensor.py
+
+      - name: Consultar backend en EKS
+        run: python3 hil/post_to_backend.py
+
+      - name: Verificar resultados
+        run: python3 hil/verify.py
