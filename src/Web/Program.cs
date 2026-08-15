@@ -2,6 +2,8 @@ using DeviceAPI.Manager.Business.Interfaces;
 using DeviceAPI.Manager.Business.Services;
 using DeviceAPI.Manager.Data.Interfaces;
 using DeviceAPI.Manager.Data.Repositories;
+using DeviceAPI.Manager.Web.Middleware;
+using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -73,7 +75,13 @@ if (urls.Contains("https://", StringComparison.OrdinalIgnoreCase))
     app.UseHttpsRedirection();
 }
 
+// Métricas HTTP genéricas (duración, status code, etc.) para scrape de Prometheus.
+// Se registra antes que el fault injection para que los 500 simulados también se cuenten.
+app.UseHttpMetrics();
+
 app.UseCors();
+app.UseMiddleware<FaultInjectionMiddleware>();
 app.MapControllers();
+app.MapMetrics(); // expone /metrics
 
 app.Run();
