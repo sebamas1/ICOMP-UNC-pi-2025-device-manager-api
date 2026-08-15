@@ -118,7 +118,7 @@ public class DevicesController(IDeviceService service) : ControllerBase
     [HttpDelete("{deviceId:int}/sensors/{sensorId:int}")]
     public void DeleteSensor(int deviceId, int sensorId)
     {
-        _service.DeleteSensor(deviceId, sensorId);
+        _service.DeleteSensor(deviceId, sensorId); // No se devuelve nada, pero se podría retornar un status code específico si se desea
     }
 
     [HttpGet("health")]

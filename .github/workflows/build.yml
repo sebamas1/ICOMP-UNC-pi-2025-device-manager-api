@@ -1,7 +1,7 @@
 # Reglas de ramas:
 # - No push directo a develop ni a main. Merge solo por PR.
-# - PR / push a develop → CI (tests + SonarCloud) + publicar imagen en ECR repo DEVELOP.
-# - PR / push a main → CI (tests + SonarCloud) + publicar imagen en ECR repo MAIN.
+# - PR / push a develop → CI (tests + SonarCloud) + publicar imagen en ECR repo DEVELOP (tag commit + latest).
+# - PR / push a main → CI (tests + SonarCloud) + publicar imagen en ECR repo MAIN/prd (tag commit + latest).
 #
 # SonarCloud: configurar en el repo Secrets (SONAR_TOKEN) y Variables (SONAR_ORGANIZATION, SONAR_PROJECT_KEY).
 # Ver README o documentación del repo para pasos exactos.
