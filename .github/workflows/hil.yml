@@ -2,10 +2,11 @@
 #
 # - unit / SIL corren en runners de GitHub en cada PR y push a develop: agente + GPIO simulado
 #   + backend local.
-# - HIL corre SÓLO con disparo manual (Actions → Run workflow): la imagen del agente se construye
-#   en la propia Raspberry Pi (ARMv7 nativo) y el mismo test de lazo se ejecuta con GPIO real
-#   contra EKS. Nunca se dispara automáticamente: requiere el hardware cableado, el backend
-#   desplegado en EKS y evita ejecutar código no revisado en el runner self-hosted.
+# - HIL corre SÓLO con disparo manual (Actions → Run workflow): el agente corre directo como
+#   proceso Python en la propia Raspberry Pi (igual que en SIL, sin contenedor) y el mismo test
+#   de lazo se ejecuta con GPIO real contra EKS. Nunca se dispara automáticamente: requiere el
+#   hardware cableado, el backend desplegado en EKS y evita ejecutar código no revisado en el
+#   runner self-hosted.
 #
 # Ver docs/hil-sil.md en el repo de infraestructura del Lab 4.
 name: Device Agent – SIL & HIL
@@ -118,7 +119,6 @@ jobs:
       BACKEND_URL: ${{ vars.EKS_ENDPOINT }}
       HIL_MODE: hil
       GPIO_CHIP: /dev/gpiochip0
-      AGENT_STOP_CMD: docker stop device-agent
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
@@ -127,32 +127,24 @@ jobs:
           test -n "$BACKEND_URL" || { echo "Variable EKS_ENDPOINT no definida"; exit 1; }
           uname -m
           python3 -c "import gpiod, pytest, requests"
-          docker version --format 'docker {{.Server.Version}}'
           test -e "$GPIO_CHIP"
 
-      - name: Build de la imagen del agente (ARMv7 nativo)
-        run: |
-          docker build -t device-agent:${{ github.sha }} device-agent
-          docker image inspect device-agent:${{ github.sha }} --format 'imagen {{.Id}} {{.Os}}/{{.Architecture}}/{{.Variant}}'
-
       - name: Arrancar agente
+        working-directory: device-agent
         run: |
-          docker rm -f device-agent 2>/dev/null || true
-          docker run -d --name device-agent \
-            --device "$GPIO_CHIP" \
-            --group-add "$(stat -c %g "$GPIO_CHIP")" \
-            -e BACKEND_URL -e GPIO_CHIP \
-            device-agent:${{ github.sha }}
+          nohup python3 -m agent > "$RUNNER_TEMP/agent.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/agent.pid"
 
       - name: Test de lazo (HIL)
+        env:
+          AGENT_STOP_CMD: kill $(cat ${{ runner.temp }}/agent.pid)
         run: python3 -m pytest hil -v --junitxml=hil-results.xml
 
       - name: Logs y limpieza
         if: always()
         run: |
-          docker logs device-agent > agent.log 2>&1 || true
-          docker rm -f device-agent || true
-          docker image rm device-agent:${{ github.sha }} || true
+          cp "$RUNNER_TEMP/agent.log" agent.log || true
+          kill "$(cat "$RUNNER_TEMP/agent.pid")" 2>/dev/null || true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
