@@ -17,6 +17,19 @@ public class DeviceRepositoryTests
         Assert.Contains(devices, d => d.Id == 1);
     }
 
+    [Theory]
+    [InlineData(11, "Door")]
+    [InlineData(12, "Relay")]
+    public void Raspberry_Has_HilLoopSensors(int sensorId, string type)
+    {
+        var repo = new DeviceRepository();
+
+        var sensor = repo.GetSensor(1, sensorId);
+
+        Assert.NotNull(sensor);
+        Assert.Equal(type, sensor!.Type);
+    }
+
     [Fact]
     public void GetById_Returns_Device_WhenExists()
     {

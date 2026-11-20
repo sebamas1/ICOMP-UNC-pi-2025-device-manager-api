@@ -1,2 +1,0 @@
-# Adafruit_DHT==1.4.0  # descomentar cuando el sensor DHT22 esté conectado
-requests==2.32.3

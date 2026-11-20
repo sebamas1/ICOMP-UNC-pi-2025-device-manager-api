@@ -1,32 +1,163 @@
-name: Hardware-in-the-Loop Tests
+# Pipeline del device-agent: unit → SIL → HIL.
+#
+# - unit / SIL corren en runners de GitHub en cada PR y push a develop: agente + GPIO simulado
+#   + backend local.
+# - HIL corre SÓLO con disparo manual (Actions → Run workflow): la imagen del agente se construye
+#   en la propia Raspberry Pi (ARMv7 nativo) y el mismo test de lazo se ejecuta con GPIO real
+#   contra EKS. Nunca se dispara automáticamente: requiere el hardware cableado, el backend
+#   desplegado en EKS y evita ejecutar código no revisado en el runner self-hosted.
+#
+# Ver docs/hil-sil.md en el repo de infraestructura del Lab 4.
+name: Device Agent – SIL & HIL
 
 on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'device-agent/**'
+      - 'hil/**'
+      - 'src/**'
+      - '.github/workflows/hil.yml'
+  push:
+    branches: [develop]
+    paths:
+      - 'device-agent/**'
+      - 'hil/**'
+      - 'src/**'
+      - '.github/workflows/hil.yml'
   workflow_dispatch:
-    inputs:
-      simulated:
-        description: 'Usar valores simulados (sin sensor fisico)'
-        type: boolean
-        default: true
+
+permissions:
+  contents: read
 
 jobs:
-  hil-tests:
-    name: HIL Tests
-    runs-on: [self-hosted, raspi]
-    env:
-      EKS_ENDPOINT: ${{ vars.EKS_ENDPOINT }}
-      HIL_SIMULATED: ${{ inputs.simulated }}
+  unit:
+    name: Unit tests del agente
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.13'
 
       - name: Instalar dependencias
-        run: pip install --break-system-packages -r hil/requirements.txt
+        run: pip install -r device-agent/requirements-dev.txt
 
-      - name: Leer sensor DHT22
-        run: python3 hil/read_sensor.py
+      - name: Pytest
+        working-directory: device-agent
+        run: python -m pytest -v
 
-      - name: Consultar backend en EKS
-        run: python3 hil/post_to_backend.py
+  sil:
+    name: SIL (GPIO simulado + backend local)
+    needs: unit
+    runs-on: ubuntu-latest
+    env:
+      BACKEND_URL: http://localhost:8080
+      GPIO_BACKEND: file
+      FAKE_GPIO_DIR: ${{ github.workspace }}/.fake-gpio
+      HIL_MODE: sil
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
-      - name: Verificar resultados
-        run: python3 hil/verify.py
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.13'
+
+      - name: Instalar dependencias
+        run: pip install -r device-agent/requirements-dev.txt
+
+      - name: Levantar backend local
+        run: |
+          docker build -f docker-config/Dockerfile -t backend:sil .
+          docker run -d --name backend -p 8080:8080 backend:sil
+          for i in $(seq 1 30); do
+            curl -sf "$BACKEND_URL/api/devices/health" && exit 0
+            sleep 2
+          done
+          docker logs backend; exit 1
+
+      - name: Levantar agente con GPIO simulado
+        working-directory: device-agent
+        run: |
+          nohup python -m agent > "$RUNNER_TEMP/agent.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/agent.pid"
+
+      - name: Test de lazo (SIL)
+        env:
+          AGENT_STOP_CMD: kill $(cat ${{ runner.temp }}/agent.pid)
+        run: python -m pytest hil -v --junitxml=sil-results.xml
+
+      - name: Logs
+        if: always()
+        run: |
+          cp "$RUNNER_TEMP/agent.log" agent.log || true
+          docker logs backend > backend.log 2>&1 || true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: sil-${{ github.sha }}
+          path: |
+            sil-results.xml
+            agent.log
+            backend.log
+
+  hil:
+    name: HIL (Raspberry Pi + EKS)
+    needs: sil
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, raspi]
+    # Agregar revisores obligatorios al environment "hil" para exigir aprobación manual
+    environment: hil
+    # Hay una sola Raspi: las corridas se encolan, nunca se pisan
+    concurrency:
+      group: hil-raspi
+      cancel-in-progress: false
+    env:
+      BACKEND_URL: ${{ vars.EKS_ENDPOINT }}
+      HIL_MODE: hil
+      GPIO_CHIP: /dev/gpiochip0
+      AGENT_STOP_CMD: docker stop device-agent
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Verificar prerequisitos de la Raspi
+        run: |
+          test -n "$BACKEND_URL" || { echo "Variable EKS_ENDPOINT no definida"; exit 1; }
+          uname -m
+          python3 -c "import gpiod, pytest, requests"
+          docker version --format 'docker {{.Server.Version}}'
+          test -e "$GPIO_CHIP"
+
+      - name: Build de la imagen del agente (ARMv7 nativo)
+        run: |
+          docker build -t device-agent:${{ github.sha }} device-agent
+          docker image inspect device-agent:${{ github.sha }} --format 'imagen {{.Id}} {{.Os}}/{{.Architecture}}/{{.Variant}}'
+
+      - name: Arrancar agente
+        run: |
+          docker rm -f device-agent 2>/dev/null || true
+          docker run -d --name device-agent \
+            --device "$GPIO_CHIP" \
+            --group-add "$(stat -c %g "$GPIO_CHIP")" \
+            -e BACKEND_URL -e GPIO_CHIP \
+            device-agent:${{ github.sha }}
+
+      - name: Test de lazo (HIL)
+        run: python3 -m pytest hil -v --junitxml=hil-results.xml
+
+      - name: Logs y limpieza
+        if: always()
+        run: |
+          docker logs device-agent > agent.log 2>&1 || true
+          docker rm -f device-agent || true
+          docker image rm device-agent:${{ github.sha }} || true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: hil-${{ github.sha }}
+          path: |
+            hil-results.xml
+            agent.log

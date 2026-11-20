@@ -19,6 +19,9 @@ public class DeviceRepository : IDeviceRepository
         new Sensor(2, "H1", "Humidity", 45.0, 1),
         new Sensor(5, "P1", "Pressure", 1012.8, 1),
         new Sensor(6, "L1", "Light", 280.0, 1),
+        // Lazo HIL: DOOR1 lo reporta el device-agent (entrada GPIO), RELAY1 es el comando que el agente aplica (salida GPIO)
+        new Sensor(11, "DOOR1", "Door", 0, 1),
+        new Sensor(12, "RELAY1", "Relay", 0, 1),
 
         // Device 2 - ESP32
         new Sensor(3, "P2", "Pressure", 1013.25, 2),
