@@ -1,0 +1,3 @@
+# Dependencias para correr el agente y los tests fuera de la Raspi (unit + SIL)
+requests==2.32.3
+pytest==8.3.5
