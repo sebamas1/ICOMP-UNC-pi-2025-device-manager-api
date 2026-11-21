@@ -150,6 +150,7 @@ jobs:
       - name: Verificar prerequisitos remotos
         run: |
           ssh -i ~/.ssh/raspi_key "$RASPI" '
+            set -e
             uname -m
             python3 -c "import gpiod, pytest, requests"
             test -e /dev/gpiochip0
