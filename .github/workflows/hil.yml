@@ -2,11 +2,12 @@
 #
 # - unit / SIL corren en runners de GitHub en cada PR y push a develop: agente + GPIO simulado
 #   + backend local.
-# - HIL corre SÓLO con disparo manual (Actions → Run workflow): el agente corre directo como
-#   proceso Python en la propia Raspberry Pi (igual que en SIL, sin contenedor) y el mismo test
-#   de lazo se ejecuta con GPIO real contra EKS. Nunca se dispara automáticamente: requiere el
-#   hardware cableado, el backend desplegado en EKS y evita ejecutar código no revisado en el
-#   runner self-hosted.
+# - HIL corre SÓLO con disparo manual (Actions → Run workflow): un runner ubuntu-latest se une
+#   a la tailnet de Tailscale y entra por SSH a la Raspberry Pi para levantar el agente (proceso
+#   Python, sin contenedor) y correr el mismo test de lazo con GPIO real contra EKS. La Raspi ya
+#   NO es un self-hosted runner de GitHub (se retiró el soporte de ARM32 — ver
+#   docs/hil-sil.md y la nota en memoria project_hil_arm32_ssh_pivot). Nunca se dispara
+#   automáticamente: requiere el hardware cableado y el backend desplegado en EKS.
 #
 # Ver docs/hil-sil.md en el repo de infraestructura del Lab 4.
 name: Device Agent – SIL & HIL
@@ -105,10 +106,10 @@ jobs:
             backend.log
 
   hil:
-    name: HIL (Raspberry Pi + EKS)
+    name: HIL (Raspberry Pi vía Tailscale SSH + EKS)
     needs: sil
     if: github.event_name == 'workflow_dispatch'
-    runs-on: [self-hosted, raspi]
+    runs-on: ubuntu-latest
     # Agregar revisores obligatorios al environment "hil" para exigir aprobación manual
     environment: hil
     # Hay una sola Raspi: las corridas se encolan, nunca se pisan
@@ -117,34 +118,74 @@ jobs:
       cancel-in-progress: false
     env:
       BACKEND_URL: ${{ vars.EKS_ENDPOINT }}
-      HIL_MODE: hil
-      GPIO_CHIP: /dev/gpiochip0
+      RASPI: ${{ vars.RASPI_SSH_USER }}@${{ vars.RASPI_SSH_HOST }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
-      - name: Verificar prerequisitos de la Raspi
+      - name: Verificar variables necesarias
         run: |
           test -n "$BACKEND_URL" || { echo "Variable EKS_ENDPOINT no definida"; exit 1; }
-          uname -m
-          python3 -c "import gpiod, pytest, requests"
-          test -e "$GPIO_CHIP"
+          test -n "${{ vars.RASPI_SSH_USER }}" || { echo "Variable RASPI_SSH_USER no definida"; exit 1; }
+          test -n "${{ vars.RASPI_SSH_HOST }}" || { echo "Variable RASPI_SSH_HOST no definida"; exit 1; }
 
-      - name: Arrancar agente
-        working-directory: device-agent
+      - name: Conectar a la tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Preparar clave SSH
         run: |
-          nohup python3 -m agent > "$RUNNER_TEMP/agent.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/agent.pid"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.RASPI_SSH_KEY }}" > ~/.ssh/raspi_key
+          chmod 600 ~/.ssh/raspi_key
+          ssh-keyscan -H "${{ vars.RASPI_SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Copiar device-agent y hil a la Raspi
+        run: |
+          rsync -az --delete -e "ssh -i ~/.ssh/raspi_key" \
+            device-agent hil "$RASPI:~/hil-ci/"
+
+      - name: Verificar prerequisitos remotos
+        run: |
+          ssh -i ~/.ssh/raspi_key "$RASPI" '
+            uname -m
+            python3 -c "import gpiod, pytest, requests"
+            test -e /dev/gpiochip0
+          '
+
+      - name: Arrancar agente en la Raspi
+        run: |
+          ssh -i ~/.ssh/raspi_key "$RASPI" bash -s <<EOF
+            cd ~/hil-ci/device-agent
+            pkill -f "python3 -m agent" || true
+            BACKEND_URL="$BACKEND_URL" GPIO_CHIP=/dev/gpiochip0 \
+              nohup python3 -m agent > /tmp/hil-agent.log 2>&1 &
+            echo \$! > /tmp/hil-agent.pid
+          EOF
 
       - name: Test de lazo (HIL)
-        env:
-          AGENT_STOP_CMD: kill $(cat ${{ runner.temp }}/agent.pid)
-        run: python3 -m pytest hil -v --junitxml=hil-results.xml
+        run: |
+          ssh -i ~/.ssh/raspi_key "$RASPI" bash -s <<EOF
+            cd ~/hil-ci/hil
+            export BACKEND_URL="$BACKEND_URL"
+            export HIL_MODE=hil
+            export GPIO_CHIP=/dev/gpiochip0
+            export AGENT_STOP_CMD="kill \\\$(cat /tmp/hil-agent.pid)"
+            python3 -m pytest -v --junitxml=/tmp/hil-results.xml
+          EOF
 
-      - name: Logs y limpieza
+      - name: Traer resultados y logs
         if: always()
         run: |
-          cp "$RUNNER_TEMP/agent.log" agent.log || true
-          kill "$(cat "$RUNNER_TEMP/agent.pid")" 2>/dev/null || true
+          scp -i ~/.ssh/raspi_key "$RASPI:/tmp/hil-results.xml" hil-results.xml || true
+          scp -i ~/.ssh/raspi_key "$RASPI:/tmp/hil-agent.log" agent.log || true
+
+      - name: Limpieza remota
+        if: always()
+        run: |
+          ssh -i ~/.ssh/raspi_key "$RASPI" 'kill "$(cat /tmp/hil-agent.pid)" 2>/dev/null || true'
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
